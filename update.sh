@@ -18,18 +18,19 @@ notmuch new --quiet 2> /dev/null
 
 # Now we use the notmuch index to get the filenames of DMARC report emails that have not
 # been processed, and hardlink those files into the input directory.
-# It errs and bails here if there are no new files.
 notmuch search --output=files --format=text0 to:dmarc@journeyfront.com AND NOT tag:parsed \
-        | xargs -0 ln -ft files
+        | xargs -0 ln -ft files 2> /dev/null \
+	|| echo "No new mail. Goodbye" \
+	; exit 1
 
 # Remove duplicate files, just in case.
 fdupes -H files
 
-# Mark exported files as parsed.
-notmuch tag +parsed to:dmarc@journeyfront.com AND NOT tag:parsed
-
 # Run the `parsedmarc` container.
 docker compose run --rm parsedmarc
+
+# Mark exported files as parsed.
+notmuch tag +parsed -unread -inbox to:dmarc@journeyfront.com AND NOT tag:parsed
 
 # Open the browser into the report dashboard.
 xdg-open http://localhost:3000/d/SDksirRWz/dmarc-reports
